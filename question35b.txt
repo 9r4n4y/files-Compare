@@ -1,0 +1,8 @@
+Calculate the exact depletion date for a portfolio starting at $100,000.
+​Parameters:
+​Initial Principal: $100,000.
+​Returns: 4% annual interest, compounded monthly (Rate_{monthly} = 0.04 / 12).
+​Withdrawals: $6,000 per year initially, withdrawn as $500 at the beginning of every month.
+​Inflation: The monthly withdrawal amount must increase by 3% at the start of every 12-month cycle (Year 2 = $515/mo, Year 3 = $530.45/mo, etc.).
+​Order of Operations: For each month: Subtract withdrawal first, then apply monthly interest to the remaining balance.
+​Output Required: Provide the total number of full months the balance remains above zero and the final date of depletion if the start date is February 25, 2026."
