@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Arena 2026</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #09090b;
+            --bg-card: #18181b;
+            --bg-input: #27272a;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --model-a-color: #22d3ee;
+            --model-b-color: #fb7185;
+            --border-subtle: #3f3f46;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        header {
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.03em;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            display: block;
+        }
+        
+        .controls-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            background: linear-gradient(to bottom right, var(--bg-card), #101012);
+            padding: 1.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            flex-wrap: wrap;
+        }
+
+        .model-select-container {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            color: white;
+            padding: 1rem 2rem 1rem 3.5rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            appearance: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: white;
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.05);
+        }
+
+        .select-arrow {
+            position: absolute;
+            right: 1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            opacity: 0.5;
+            font-size: 1.2rem;
+        }
+
+        .color-indicator {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            box-shadow: 0 0 10px currentColor;
+            z-index: 2;
+        }
+
+        .divider {
+            color: #555;
+            font-weight: bold;
+            font-size: 1.5rem;
+            padding: 0 0.5rem;
+        }
+
+        button#runBtn {
+            background: white;
+            color: black;
+            font-weight: 700;
+            padding: 1rem 2.5rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: transform 0.2s, filter 0.2s;
+            white-space: nowrap;
+        }
+
+        button#runBtn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+            box-shadow: 0 5px 15px rgba(255,255,255,0.1);
+        }
+
+        #dashboard {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .insight-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            padding: 1.5rem;
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .insight-card:hover { transform: translateY(-3px); }
+        
+        .win-streak { border-left: 4px solid var(--model-a-color); }
+        .lose-streak { border-left: 4px solid var(--model-b-color); }
+
+        .insight-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+
+        .insight-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #d4d4d8;
+        }
+        
+        .score-highlight { font-weight: 800; }
+        .text-cyan { color: var(--model-a-color); }
+        .text-rose { color: var(--model-b-color); }
+
+        .scoreboard {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+
+        .scoreboard-header {
+            display: grid;
+            grid-template-columns: 350px 1fr 1fr;
+            background: #202023;
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            text-align: center;
+        }
+
+        .col-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .total-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-top: 0.5rem;
+            line-height: 1;
+        }
+
+        .metric-list {
+            width: 100%;
+        }
+
+        .category-header {
+            background: #1c1c1e;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-subtle);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .row-item {
+            display: grid;
+            grid-template-columns: 350px 1fr 1fr;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            overflow: visible; 
+        }
+
+        .cell-name {
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            background: rgba(255,255,255,0.01);
+        }
+
+        .cell-val {
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            position: relative;
+            min-height: 70px;
+        }
+
+        .diff-tag {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 0.65rem;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-weight: 800;
+            z-index: 2;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        @media (max-width: 900px) {
+            .scoreboard-header { display: none; }
+            
+            .row-item {
+                display: block;
+                padding: 1rem;
+                border-bottom: 2px solid var(--border-subtle);
+                background: var(--bg-card);
+            }
+
+            .cell-name {
+                margin-bottom: 0.5rem;
+                background: transparent;
+                font-weight: 700;
+                color: white;
+                padding-left: 0;
+            }
+
+            .cell-val {
+                width: 100%;
+                height: auto;
+                padding: 0.75rem;
+                margin-bottom: 0.5rem;
+                border: 1px solid var(--border-subtle);
+                border-radius: 8px;
+                justify-content: space-between;
+                background: rgba(255,255,255,0.02);
+            }
+
+            .diff-tag {
+                position: static;
+                margin-left: 10px;
+                transform: scale(1);
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Benchmark Arena 2026</h1>
+        <span class="subtitle">Compare verified LLM capabilities.</span>
+        
+        <div class="controls-wrapper">
+            <div class="model-select-container">
+                <div class="color-indicator" style="background: var(--model-a-color);"></div>
+                <select id="selA"></select>
+                <div class="select-arrow">▼</div>
+            </div>
+
+            <div class="divider">VS</div>
+
+            <div class="model-select-container">
+                <div class="color-indicator" style="background: var(--model-b-color);"></div>
+                <select id="selB"></select>
+                <div class="select-arrow">▼</div>
+            </div>
+
+            <button id="runBtn">Generate Report</button>
+        </div>
+    </header>
+
+    <div id="dashboard">
+        <div class="insights-grid" id="insightsArea"></div>
+
+        <div class="scoreboard">
+            <div class="scoreboard-header">
+                <div class="col-label"></div>
+                <div class="col-label" style="color:var(--model-a-color)">
+                    MODEL A
+                    <div class="total-score" id="scoreTotalA">--</div>
+                </div>
+                <div class="col-label" style="color:var(--model-b-color)">
+                    MODEL B
+                    <div class="total-score" id="scoreTotalB">--</div>
+                </div>
+            </div>
+            
+            <div class="metric-list" id="rowsArea"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const db = {
+        names: ["GPT5.2", "Claude 4.5 Opus", "Gemini-3 Pro", "Qwen3-Max-Thinking", "K2.5-1T-A32B", "Qwen3.5-397B-A17B", "GPT-5-mini", "GPT-OSS-120B", "Qwen3-235B-A22B", "Qwen3.5-122B-A10B", "Qwen3.5-27B", "Qwen3.5-35B-A3B"],
+        
+        // ALL 21 TESTS ACROSS 7 CATEGORIES (VERIFIED)
+        categories: [
+            {
+                title: "🧠 Knowledge",
+                items: [
+                    { key: "mmlu_pro", label: "MMLU-Pro" },
+                    { key: "mmlu_redux", label: "MMLU-Redux" },
+                    { key: "ceval", label: "C-Eval" },
+                    { key: "super_gpqa", label: "SuperGPQA" }
+                ]
+            },
+            {
+                title: "📝 Instruction Following",
+                items: [
+                    { key: "ifeval", label: "IFEval" },
+                    { key: "ifbench", label: "IFBench" },
+                    { key: "multi_challenge", label: "MultiChallenge" }
+                ]
+            },
+            {
+                title: "🏛️ Long Context",
+                items: [
+                    { key: "aa_lcr", label: "AA-LCR" },
+                    { key: "longbench_v2", label: "LongBench v2" }
+                ]
+            },
+            {
+                title: "⚛️ STEM",
+                items: [
+                    { key: "gpqa_diamond", label: "GPQA (D)" },
+                    { key: "hle_raw", label: "HLE (Raw)" },
+                    { key: "hle_tool", label: "HLE w/ Tool" }
+                ]
+            },
+            {
+                title: "🧮 Reasoning",
+                items: [
+                    { key: "livecodebench", label: "LiveCodeBench" },
+                    { key: "hmmt_feb", label: "HMMT Feb 25" },
+                    { key: "hmmt_nov", label: "HMMT Nov 25" },
+                    { key: "aime26", label: "AIME26" }
+                ]
+            },
+            {
+                title: "💻 Coding",
+                items: [
+                    { key: "swe_verified", label: "SWE-Verified" },
+                    { key: "terminal_bench", label: "TerminalBench2" },
+                    { key: "fullstack", label: "FullStack (en)" }
+                ]
+            },
+            {
+                title: "🤖 Agents",
+                items: [
+                    { key: "bfcl_v4", label: "BFCL-V4" },
+                    { key: "tau2", label: "TAU2-Bench" }
+                ]
+            }
+        ],
+
+        // ✅ ALL SCORES VERIFIED AGAINST YOUR TABLE
+        data: {
+            "GPT5.2": {
+                mmlu_pro: 87.4, mmlu_redux: 95.0, ceval: 90.5, super_gpqa: 67.9,
+                ifeval: 94.8, ifbench: 75.4, multi_challenge: 57.9,
+                aa_lcr: 72.7, longbench_v2: 54.5,
+                gpqa_diamond: 92.4, hle_raw: 35.5, hle_tool: 45.5,
+                livecodebench: 87.7, hmmt_feb: 99.4, hmmt_nov: 100.0, aime26: 96.7,
+                swe_verified: 80.0, terminal_bench: 54.0, fullstack: null,
+                bfcl_v4: 63.1, tau2: 87.1
+            },
+            "Claude 4.5 Opus": {
+                mmlu_pro: 89.5, mmlu_redux: 95.6, ceval: 92.2, super_gpqa: 70.6,
+                ifeval: 90.9, ifbench: 58.0, multi_challenge: 54.2,
+                aa_lcr: 74.0, longbench_v2: 64.4,
+                gpqa_diamond: 87.0, hle_raw: 30.8, hle_tool: 43.4,
+                livecodebench: 84.8, hmmt_feb: 92.9, hmmt_nov: 93.3, aime26: 93.3,
+                swe_verified: 80.9, terminal_bench: 59.3, fullstack: null,
+                bfcl_v4: 77.5, tau2: 91.6
+            },
+            "Gemini-3 Pro": {
+                mmlu_pro: 89.8, mmlu_redux: 95.9, ceval: 93.4, super_gpqa: 74.0,
+                ifeval: 93.5, ifbench: 70.4, multi_challenge: 64.2,
+                aa_lcr: 70.7, longbench_v2: 68.2,
+                gpqa_diamond: 91.9, hle_raw: 37.5, hle_tool: 45.8,
+                livecodebench: 90.7, hmmt_feb: 97.3, hmmt_nov: 93.3, aime26: 90.6,
+                swe_verified: 76.2, terminal_bench: 54.2, fullstack: null,
+                bfcl_v4: 72.5, tau2: 85.4
+            },
+            "Qwen3-Max-Thinking": {
+                mmlu_pro: 85.7, mmlu_redux: 92.8, ceval: 93.7, super_gpqa: 67.3,
+                ifeval: 93.4, ifbench: 70.9, multi_challenge: 63.3,
+                aa_lcr: 68.7, longbench_v2: 60.6,
+                gpqa_diamond: 87.4, hle_raw: 30.2, hle_tool: 49.8,
+                livecodebench: 85.9, hmmt_feb: 98.0, hmmt_nov: 94.7, aime26: 93.3,
+                swe_verified: 75.3, terminal_bench: 22.5, fullstack: null,
+                bfcl_v4: 67.7, tau2: 84.6
+            },
+            "K2.5-1T-A32B": {
+                mmlu_pro: 87.1, mmlu_redux: 94.5, ceval: 94.0, super_gpqa: 69.2,
+                ifeval: 93.9, ifbench: 70.2, multi_challenge: 62.7,
+                aa_lcr: 70.0, longbench_v2: 61.0,
+                gpqa_diamond: 87.6, hle_raw: 30.1, hle_tool: 50.2,
+                livecodebench: 85.0, hmmt_feb: 95.4, hmmt_nov: 91.1, aime26: 93.3,
+                swe_verified: 76.8, terminal_bench: 50.8, fullstack: null,
+                bfcl_v4: 68.3, tau2: 77.0
+            },
+            "Qwen3.5-397B-A17B": {
+                mmlu_pro: 87.8, mmlu_redux: 94.9, ceval: 93.0, super_gpqa: 70.4,
+                ifeval: 92.6, ifbench: 76.5, multi_challenge: 67.6,
+                aa_lcr: 68.7, longbench_v2: 63.2,
+                gpqa_diamond: 88.4, hle_raw: 28.7, hle_tool: 48.3,
+                livecodebench: 83.6, hmmt_feb: 94.8, hmmt_nov: 92.7, aime26: 91.3,
+                swe_verified: 76.4, terminal_bench: 52.5, fullstack: null,
+                bfcl_v4: 72.9, tau2: 86.7
+            },
+            "GPT-5-mini": {
+                mmlu_pro: 83.7, mmlu_redux: 93.7, ceval: 82.2, super_gpqa: 58.6,
+                ifeval: 93.9, ifbench: 75.4, multi_challenge: 59.0,
+                aa_lcr: 68.0, longbench_v2: 56.8,
+                gpqa_diamond: 82.8, hle_raw: 19.4, hle_tool: 35.8,
+                livecodebench: 80.5, hmmt_feb: 89.2, hmmt_nov: 84.2, aime26: null,
+                swe_verified: 72.0, terminal_bench: 31.9, fullstack: 30.6,
+                bfcl_v4: 55.5, tau2: 69.8
+            },
+            "GPT-OSS-120B": {
+                mmlu_pro: 80.8, mmlu_redux: 91.0, ceval: 76.2, super_gpqa: 54.6,
+                ifeval: 88.9, ifbench: 69.0, multi_challenge: 45.3,
+                aa_lcr: 50.7, longbench_v2: 48.2,
+                gpqa_diamond: 80.1, hle_raw: 14.9, hle_tool: 19.0,
+                livecodebench: 82.7, hmmt_feb: 90.0, hmmt_nov: 90.0, aime26: 90.0,
+                swe_verified: 62.0, terminal_bench: 18.7, fullstack: 58.9,
+                bfcl_v4: null, tau2: null
+            },
+            "Qwen3-235B-A22B": {
+                mmlu_pro: 84.4, mmlu_redux: 93.8, ceval: 92.1, super_gpqa: 64.9,
+                ifeval: 87.8, ifbench: 51.7, multi_challenge: 50.2,
+                aa_lcr: 60.0, longbench_v2: 54.8,
+                gpqa_diamond: 81.1, hle_raw: 18.2, hle_tool: null,
+                livecodebench: 75.1, hmmt_feb: 85.1, hmmt_nov: 89.5, aime26: null,
+                swe_verified: null, terminal_bench: null, fullstack: 61.1,
+                bfcl_v4: 54.8, tau2: 58.5
+            },
+            "Qwen3.5-122B-A10B": {
+                mmlu_pro: 86.7, mmlu_redux: 94.0, ceval: 91.9, super_gpqa: 67.1,
+                ifeval: 93.4, ifbench: 76.1, multi_challenge: 61.5,
+                aa_lcr: 66.9, longbench_v2: 60.2,
+                gpqa_diamond: 86.6, hle_raw: 25.3, hle_tool: 47.5,
+                livecodebench: 78.9, hmmt_feb: 91.4, hmmt_nov: 90.3, aime26: null,
+                swe_verified: 72.0, terminal_bench: 49.4, fullstack: 62.6,
+                bfcl_v4: 72.2, tau2: 79.5
+            },
+            "Qwen3.5-27B": {
+                mmlu_pro: 86.1, mmlu_redux: 93.2, ceval: 90.5, super_gpqa: 65.6,
+                ifeval: 95.0, ifbench: 76.5, multi_challenge: 60.8,
+                aa_lcr: 66.1, longbench_v2: 60.6,
+                gpqa_diamond: 85.5, hle_raw: 24.3, hle_tool: 48.5,
+                livecodebench: 80.7, hmmt_feb: 92.0, hmmt_nov: 89.8, aime26: null,
+                swe_verified: 72.4, terminal_bench: 41.6, fullstack: 60.1,
+                bfcl_v4: 68.5, tau2: 79.0
+            },
+            "Qwen3.5-35B-A3B": {
+                mmlu_pro: 85.3, mmlu_redux: 93.3, ceval: 90.2, super_gpqa: 63.4,
+                ifeval: 91.9, ifbench: 70.2, multi_challenge: 60.0,
+                aa_lcr: 58.5, longbench_v2: 59.0,
+                gpqa_diamond: 84.2, hle_raw: 22.4, hle_tool: 47.4,
+                livecodebench: 74.6, hmmt_feb: 89.0, hmmt_nov: 89.2, aime26: null,
+                swe_verified: 69.2, terminal_bench: 40.5, fullstack: 58.1,
+                bfcl_v4: 67.3, tau2: 81.2
+            }
+        }
+    };
+
+    const selA = document.getElementById('selA');
+    const selB = document.getElementById('selB');
+    
+    db.names.forEach(n => {
+        selA.add(new Option(n, n));
+        selB.add(new Option(n, n));
+    });
+
+    selA.value = "GPT5.2";
+    selB.value = "Claude 4.5 Opus";
+
+    document.getElementById('runBtn').addEventListener('click', () => {
+        renderUI(selA.value, selB.value);
+    });
+
+    function renderUI(nameA, nameB) {
+        const dashboard = document.getElementById('dashboard');
+        dashboard.style.display = 'block';
+        window.scrollTo({top: 50, behavior: 'smooth'});
+
+        const dataA = db.data[nameA];
+        const dataB = db.data[nameB];
+        
+        let totalA = 0, countA = 0;
+        let totalB = 0, countB = 0;
+
+        const listArea = document.getElementById('rowsArea');
+        listArea.innerHTML = '';
+
+        db.categories.forEach(cat => {
+            let catHasData = false;
+            cat.items.forEach(item => {
+                if(dataA[item.key] !== null || dataB[item.key] !== null) catHasData = true;
+            });
+            if(!catHasData) return;
+
+            const catDiv = document.createElement('div');
+            catDiv.className = 'category-header';
+            catDiv.innerHTML = `<span>${cat.title}</span>`;
+            listArea.appendChild(catDiv);
+
+            cat.items.forEach(item => {
+                const valA = dataA[item.key];
+                const valB = dataB[item.key];
+
+                if(valA === null && valB === null) return;
+
+                if(valA !== null) { totalA += valA; countA++; }
+                if(valB !== null) { totalB += valB; countB++; }
+
+                let colorA = '#fff';
+                let colorB = '#fff';
+                let diffHtmlA = '';
+                let diffHtmlB = '';
+                
+                if(valA !== null && valB !== null) {
+                    const diff = valA - valB;
+                    if(diff > 0) {
+                        colorA = 'var(--model-a-color)';
+                        diffHtmlA = `<span class="diff-tag" style="background:var(--model-a-color); color:black">+${diff.toFixed(1)}</span>`;
+                    } else if (diff < 0) {
+                        colorB = 'var(--model-b-color)';
+                        diffHtmlB = `<span class="diff-tag" style="background:var(--model-b-color); color:black">+${Math.abs(diff).toFixed(1)}</span>`;
+                    }
+                }
+
+                const row = `
+                    <div class="row-item">
+                        <div class="cell-name">${item.label}</div>
+                        
+                        <div class="cell-val" style="color:${valA===null?'#555':colorA}">
+                            ${diffHtmlA}
+                            ${valA !== null ? valA.toFixed(1) : '<span style="opacity:0.5">N/A</span>'}
+                        </div>
+
+                        <div class="cell-val" style="color:${valB===null?'#555':colorB}">
+                            ${diffHtmlB}
+                            ${valB !== null ? valB.toFixed(1) : '<span style="opacity:0.5">N/A</span>'}
+                        </div>
+                    </div>
+                `;
+                listArea.innerHTML += row;
+            });
+        });
+
+        const avgA = countA ? (totalA/countA).toFixed(2) : "N/A";
+        const avgB = countB ? (totalB/countB).toFixed(2) : "N/A";
+        
+        document.getElementById('scoreTotalA').innerText = avgA;
+        document.getElementById('scoreTotalB').innerText = avgB;
+
+        generateInsights(nameA, nameB, dataA, dataB);
+    }
+
+    function generateInsights(nameA, nameB, dA, dB) {
+        const container = document.getElementById('insightsArea');
+        container.innerHTML = '';
+
+        const getAvg = (keys, dataObj) => {
+            let s = 0, c = 0;
+            keys.forEach(k => { if(dataObj[k]!==null){ s+=dataObj[k]; c++;}});
+            return c ? s/c : 0;
+        };
+
+        const groups = [
+            { k: ['mmlu_pro','mmlu_redux'], t: "Academic Knowledge" },
+            { k: ['swe_verified','terminal_bench','fullstack','livecodebench'], t: "Coding Capability" },
+            { k: ['hmmt_feb','hmmt_nov','aime26','gpqa_diamond'], t: "Complex Logic & Math" },
+            { k: ['tau2','bfcl_v4'], t: "Agent Behavior" },
+            { k: ['aa_lcr','longbench_v2'], t: "Long Context Handling" }
+        ];
+
+        groups.forEach(g => {
+            const avA = getAvg(g.k, dA);
+            const avB = getAvg(g.k, dB);
+            const delta = avA - avB;
+
+            if(avA === 0 && avB === 0) return; 
+
+            const absDelta = Math.abs(delta);
+            let cardClass = "insight-card win-streak";
+            let text = "";
+            let winnerText = "";
+
+            if(absDelta < 0.5) {
+                winnerText = "Statistical Tie";
+                text = `Both models perform similarly in <strong>${g.t}</strong>. Average score approx ${avA.toFixed(1)}.`;
+            } else if (delta > 0) {
+                winnerText = `${nameA} Wins`;
+                text = `<span class="score-highlight text-cyan">${nameA}</span> dominates <strong>${g.t}</strong> with an average of ${avA.toFixed(1)} compared to ${avB.toFixed(1)} (${absDelta.toFixed(1)} point lead).`;
+            } else {
+                winnerText = `${nameB} Wins`;
+                cardClass = "insight-card lose-streak";
+                text = `<span class="score-highlight text-rose">${nameB}</span> crushes <strong>${g.t}</strong> (Avg: ${avB.toFixed(1)}) beating Model A by ${absDelta.toFixed(1)} points.`;
+            }
+
+            const div = document.createElement('div');
+            div.className = cardClass;
+            div.innerHTML = `
+                <div class="insight-title">${g.t}</div>
+                <div class="insight-text">${text}</div>
+                <div style="margin-top:1rem; font-weight:700; font-size:0.9rem; color:white; border-top:1px solid #333; padding-top:0.5rem;">
+                    ${winnerText}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+</script>
+
+</body>
+</html>
+
