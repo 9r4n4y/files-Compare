@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Benchmark Comparator Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBase: '#0b0f19',
+                        darkCard: '#111827',
+                        accent1: '#3b82f6',
+                        accent2: '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0b0f19; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
+        .glass-panel { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .custom-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem; }
+        .chart-container { min-width: 1800px; height: 500px; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+    <div class="w-full max-w-7xl space-y-8">
+        <header class="text-center">
+            <h1 class="text-3xl md:text-5xl font-bold tracking-tight text-white mb-2">LLM Comprehensive Comparator</h1>
+            <p class="text-slate-400 text-sm md:text-base">Complete Benchmark Matrix & Direct Infographic Comparison</p>
+        </header>
+
+        <section class="glass-panel p-6 rounded-2xl flex flex-col md:flex-row gap-4 items-end shadow-2xl">
+            <div class="w-full md:w-5/12">
+                <label class="block text-xs font-semibold text-accent1 uppercase tracking-wider mb-2">Model A (Blue)</label>
+                <select id="model1" class="custom-select w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 outline-none focus:border-accent1 transition-colors"></select>
+            </div>
+            
+            <div class="w-full md:w-2/12 flex justify-center pb-2">
+                <button onclick="compareModels()" class="w-full md:w-auto bg-white text-slate-900 font-bold py-3 px-6 rounded-lg hover:bg-slate-200 transition-transform transform active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                    COMPARE
+                </button>
+            </div>
+
+            <div class="w-full md:w-5/12">
+                <label class="block text-xs font-semibold text-accent2 uppercase tracking-wider mb-2">Model B (Green)</label>
+                <select id="model2" class="custom-select w-full bg-slate-800 text-white border border-slate-700 rounded-lg p-3 outline-none focus:border-accent2 transition-colors"></select>
+            </div>
+        </section>
+
+        <div id="results-container" class="hidden space-y-8 animate-fade-in">
+            <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                <div class="glass-panel p-6 rounded-2xl col-span-1 shadow-xl flex items-center justify-center min-h-[400px]">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <div class="glass-panel p-6 rounded-2xl col-span-1 xl:col-span-3 shadow-xl overflow-x-auto custom-scrollbar">
+                    <div class="chart-container">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <section class="glass-panel p-6 md:p-8 rounded-2xl shadow-xl">
+                <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2">Category Dominance Breakdown</h2>
+                <div id="summary-output" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        const models = [
+            "GPT5.2", "Claude 4.5 Opus", "Gemini-3 Pro", "Qwen3-Max-Thinking", 
+            "K2.5-1T-A32B", "Qwen3.5-397B-A17B", "GPT-5-mini", "GPT-OSS-120B", 
+            "Qwen3-235B-A22B", "Qwen3.5-122B-A10B", "Qwen3.5-27B", "Qwen3.5-35B-A3B"
+        ];
+
+        const rawData = {
+            "Knowledge": {
+                "MMLU-Pro": [87.4, 89.5, 89.8, 85.7, 87.1, 87.8, 83.7, 80.8, 84.4, 86.7, 86.1, 85.3],
+                "MMLU-Redux": [95.0, 95.6, 95.9, 92.8, 94.5, 94.9, 93.7, 91.0, 93.8, 94.0, 93.2, 93.3],
+                "SuperGPQA": [67.9, 70.6, 74.0, 67.3, 69.2, 70.4, 58.6, 54.6, 64.9, 67.1, 65.6, 63.4],
+                "C-Eval": [90.5, 92.2, 93.4, 93.7, 94.0, 93.0, 82.2, 76.2, 92.1, 91.9, 90.5, 90.2]
+            },
+            "Instruction": {
+                "IFEval": [94.8, 90.9, 93.5, 93.4, 93.9, 92.6, 93.9, 88.9, 87.8, 93.4, 95.0, 91.9],
+                "IFBench": [75.4, 58.0, 70.4, 70.9, 70.2, 76.5, 75.4, 69.0, 51.7, 76.1, 76.5, 70.2],
+                "MultiChallenge": [57.9, 54.2, 64.2, 63.3, 62.7, 67.6, 59.0, 45.3, 50.2, 61.5, 60.8, 60.0]
+            },
+            "Long Context": {
+                "AA-LCR": [72.7, 74.0, 70.7, 68.7, 70.0, 68.7, 68.0, 50.7, 60.0, 66.9, 66.1, 58.5],
+                "LongBench v2": [54.5, 64.4, 68.2, 60.6, 61.0, 63.2, 56.8, 48.2, 54.8, 60.2, 60.6, 59.0]
+            },
+            "STEM": {
+                "GPQA Diamond": [92.4, 87.0, 91.9, 87.4, 87.6, 88.4, 82.8, 80.1, 81.1, 86.6, 85.5, 84.2],
+                "HLE": [35.5, 30.8, 37.5, 30.2, 30.1, 28.7, null, null, null, null, null, null],
+                "HLE-Verified¹": [43.3, 38.8, 48.0, 37.6, null, 37.6, null, null, null, null, null, null],
+                "HLE w/ CoT": [null, null, null, null, null, null, 19.4, 14.9, 18.2, 25.3, 24.3, 22.4]
+            },
+            "Reasoning": {
+                "LiveCodeBench v6": [87.7, 84.8, 90.7, 85.9, 85.0, 83.6, 80.5, 82.7, 75.1, 78.9, 80.7, 74.6],
+                "HMMT Feb 25": [99.4, 92.9, 97.3, 98.0, 95.4, 94.8, 89.2, 90.0, 85.1, 91.4, 92.0, 89.0],
+                "HMMT Nov 25": [100.0, 93.3, 93.3, 94.7, 91.1, 92.7, 84.2, 90.0, 89.5, 90.3, 89.8, 89.2],
+                "IMOAnswerBench": [86.3, 84.0, 83.3, 83.9, 81.8, 80.9, null, null, null, null, null, null],
+                "AIME26": [96.7, 93.3, 90.6, 93.3, 93.3, 91.3, null, null, null, null, null, null]
+            },
+            "General Agent": {
+                "BFCL-V4": [63.1, 77.5, 72.5, 67.7, 68.3, 72.9, 55.5, null, 54.8, 72.2, 68.5, 67.3],
+                "TAU2-Bench": [87.1, 91.6, 85.4, 84.6, 77.0, 86.7, 69.8, null, 58.5, 79.5, 79.0, 81.2],
+                "VITA-Bench": [38.2, 56.3, 51.6, 40.9, 41.9, 49.7, 13.9, null, 31.6, 33.6, 41.9, 31.9],
+                "DeepPlanning": [44.6, 33.9, 23.3, 28.7, 14.5, 34.3, 17.9, null, 17.1, 24.1, 22.6, 22.8],
+                "Tool Decathlon": [43.8, 43.5, 36.4, 18.8, 27.8, 38.3, null, null, null, null, null, null],
+                "MCP-Mark": [57.5, 42.3, 53.9, 33.5, 29.5, 46.1, null, null, null, null, null, null]
+            },
+            "Search Agent": {
+                "HLE w/ tool": [45.5, 43.4, 45.8, 49.8, 50.2, 48.3, 35.8, 19.0, null, 47.5, 48.5, 47.4],
+                "BrowseComp": [65.8, 67.8, 59.2, 53.9, 74.9, 78.6, 48.1, 41.1, null, 63.8, 61.0, 61.0],
+                "BrowseComp-zh": [76.1, 62.4, 66.8, 60.9, null, 70.3, 49.5, 42.9, null, 69.9, 62.1, 69.5],
+                "WideSearch": [76.8, 76.4, 68.0, 57.9, 72.7, 74.0, 47.2, 40.4, null, 60.5, 61.1, 57.1],
+                "Seal-0": [45.0, 47.7, 45.5, 46.9, 57.4, 46.9, 34.2, 45.1, null, 44.1, 47.2, 41.4]
+            },
+            "Multilingualism": {
+                "MMMLU": [89.5, 90.1, 90.6, 84.4, 86.0, 88.5, 86.2, 78.2, 83.4, 86.7, 85.9, 85.2],
+                "MMLU-ProX": [83.7, 85.7, 87.7, 78.5, 82.3, 84.7, 78.5, 74.5, 77.9, 82.2, 82.2, 81.0],
+                "NOVA-63": [54.6, 56.7, 56.7, 54.2, 56.0, 59.1, 51.9, 51.1, 55.4, 58.6, 58.1, 57.1],
+                "INCLUDE": [87.5, 86.2, 90.5, 82.3, 83.3, 85.6, 81.8, 74.0, 81.0, 82.8, 81.6, 79.7],
+                "Global PIQA": [90.9, 91.6, 93.2, 86.0, 89.3, 89.8, 88.5, 84.1, 85.7, 88.4, 87.5, 86.6],
+                "PolyMATH": [62.5, 79.0, 81.6, 64.7, 43.1, 73.3, 67.3, 54.0, 60.1, 68.9, 71.2, 64.4],
+                "WMT24++": [78.8, 79.7, 80.7, 77.6, 77.6, 78.9, 80.7, 74.4, 75.8, 78.3, 77.6, 76.3],
+                "MAXIFE": [88.4, 79.2, 87.5, 84.0, 72.8, 88.2, 85.3, 83.7, 83.2, 87.9, 88.0, 86.6]
+            },
+            "Coding Agent": {
+                "SWE-bench Verified": [80.0, 80.9, 76.2, 75.3, 76.8, 76.4, 72.0, 62.0, null, 72.0, 72.4, 69.2],
+                "SWE-bench Multilingual": [72.0, 77.5, 65.0, 66.7, 73.0, 69.3, null, null, null, null, null, null],
+                "SecCodeBench": [68.7, 68.6, 62.4, 57.5, 61.3, 68.3, null, null, null, null, null, null],
+                "Terminal Bench 2": [54.0, 59.3, 54.2, 22.5, 50.8, 52.5, 31.9, 18.7, null, 49.4, 41.6, 40.5],
+                "CodeForces": [null, null, null, null, null, null, 2160, 2157, 2146, 2100, 1899, 2028],
+                "OJBench": [null, null, null, null, null, null, 40.4, 41.5, 32.7, 39.5, 40.1, 36.0],
+                "FullStackBench en": [null, null, null, null, null, null, 30.6, 58.9, 61.1, 62.6, 60.1, 58.1],
+                "FullStackBench zh": [null, null, null, null, null, null, 35.2, 60.4, 63.1, 58.7, 57.4, 55.0]
+            }
+        };
+
+        let radarChartInstance = null;
+        let barChartInstance = null;
+
+        window.onload = () => {
+            const s1 = document.getElementById('model1');
+            const s2 = document.getElementById('model2');
+            models.forEach((m, i) => {
+                s1.add(new Option(m, i));
+                s2.add(new Option(m, i));
+            });
+            s1.selectedIndex = 0; 
+            s2.selectedIndex = 2; 
+        };
+
+        function calculateAverages(mIndex) {
+            const averages = [];
+            const categories = Object.keys(rawData);
+            
+            categories.forEach(cat => {
+                let sum = 0;
+                let count = 0;
+                Object.values(rawData[cat]).forEach(metricArr => {
+                    const val = metricArr[mIndex];
+                    if (val !== null && val !== undefined && val <= 100) { 
+                        sum += val;
+                        count++;
+                    }
+                });
+                averages.push(count > 0 ? (sum / count).toFixed(1) : 0);
+            });
+            return { categories, averages };
+        }
+
+        function compareModels() {
+            const idx1 = document.getElementById('model1').value;
+            const idx2 = document.getElementById('model2').value;
+            const name1 = models[idx1];
+            const name2 = models[idx2];
+
+            document.getElementById('results-container').classList.remove('hidden');
+
+            const avg1 = calculateAverages(idx1);
+            const avg2 = calculateAverages(idx2);
+
+            updateRadarChart(avg1.categories, avg1.averages, avg2.averages, name1, name2);
+            updateBarChart(idx1, idx2, name1, name2);
+            generateSummary(avg1, avg2, name1, name2);
+        }
+
+        function updateRadarChart(labels, data1, data2, name1, name2) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            if (radarChartInstance) radarChartInstance.destroy();
+
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.font.family = 'system-ui';
+
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: name1, data: data1, backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6', pointBackgroundColor: '#3b82f6', borderWidth: 2 },
+                        { label: name2, data: data2, backgroundColor: 'rgba(16, 185, 129, 0.2)', borderColor: '#10b981', pointBackgroundColor: '#10b981', borderWidth: 2 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            pointLabels: { color: '#e2e8f0', font: { size: 10, weight: '600' } },
+                            ticks: { display: false, min: 20, max: 100 }
+                        }
+                    },
+                    plugins: { 
+                        legend: { position: 'top', labels: { color: '#fff' } },
+                        datalabels: { display: false } 
+                    }
+                }
+            });
+        }
+
+        function updateBarChart(idx1, idx2, name1, name2) {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+
+            const labels = [];
+            const d1_visual = [];
+            const d2_visual = [];
+            const d1_real = [];
+            const d2_real = [];
+
+            Object.keys(rawData).forEach(cat => {
+                Object.keys(rawData[cat]).forEach(metric => {
+                    labels.push(metric);
+                    
+                    let v1 = rawData[cat][metric][idx1];
+                    let v2 = rawData[cat][metric][idx2];
+
+                    d1_real.push(v1);
+                    d2_real.push(v2);
+
+                    d1_visual.push(v1 > 1000 ? v1 / 25 : v1);
+                    d2_visual.push(v2 > 1000 ? v2 / 25 : v2);
+                });
+            });
+
+            barChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: name1, data: d1_visual, realData: d1_real, backgroundColor: '#3b82f6', borderRadius: 4 },
+                        { label: name2, data: d2_visual, realData: d2_real, backgroundColor: '#10b981', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { top: 30 } },
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, max: 100 },
+                        x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 11 } } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { 
+                                    return ` ${context.dataset.label}: ${context.dataset.realData[context.dataIndex] || 'N/A'}`; 
+                                }
+                            }
+                        },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'top',
+                            color: '#e2e8f0',
+                            font: { size: 10, weight: 'bold' },
+                            formatter: function(value, context) {
+                                let realVal = context.dataset.realData[context.dataIndex];
+                                return realVal === null || realVal === undefined ? '' : realVal;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateSummary(avg1, avg2, name1, name2) {
+            const container = document.getElementById('summary-output');
+            container.innerHTML = '';
+
+            let score1 = 0;
+            let score2 = 0;
+
+            avg1.categories.forEach((cat, i) => {
+                const v1 = parseFloat(avg1.averages[i]);
+                const v2 = parseFloat(avg2.averages[i]);
+                
+                let text = '';
+                let colorClass = '';
+
+                if (v1 > v2) {
+                    text = `<span class="text-accent1 font-bold">${name1}</span> dominated with ${v1} vs ${v2}`;
+                    colorClass = 'border-l-accent1';
+                    score1++;
+                } else if (v2 > v1) {
+                    text = `<span class="text-accent2 font-bold">${name2}</span> outperformed with ${v2} vs ${v1}`;
+                    colorClass = 'border-l-accent2';
+                    score2++;
+                } else {
+                    text = `<span class="text-slate-400">Exact Tie or N/A</span> at ${v1}`;
+                    colorClass = 'border-l-slate-500';
+                }
+
+                container.innerHTML += `
+                    <div class="bg-slate-800/50 p-4 rounded-lg border-l-4 ${colorClass}">
+                        <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">[${cat}]</div>
+                        <div class="text-slate-200">${text}</div>
+                    </div>
+                `;
+            });
+
+            const overallWinner = score1 > score2 ? name1 : (score2 > score1 ? name2 : "Tie");
+            const winnerColor = score1 > score2 ? 'text-accent1' : (score2 > score1 ? 'text-accent2' : 'text-white');
+
+            container.innerHTML += `
+                <div class="col-span-1 md:col-span-3 mt-4 text-center p-4 bg-slate-900 border border-slate-700 rounded-xl">
+                    <span class="text-slate-400 uppercase text-xs tracking-widest block mb-1">Overall Verdict</span>
+                    <span class="text-2xl font-black ${winnerColor}">${overallWinner} wins across more categories.</span>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
